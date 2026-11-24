@@ -1,0 +1,68 @@
+#!/usr/bin/env node
+'use strict'
+
+// Stop-hook nudge (Plan 36, Step 7). If this session's working tree changed
+// src/** but touched no tests/**, remind Claude to add/adjust an e2e spec before
+// wrapping up — so the Playwright suite never drifts behind the app. It only
+// *reminds*; it never runs the suite. It fires at most once per stop (guarded by
+// `stop_hook_active`) so it can't loop, and stays silent for pure/non-src work.
+
+const fs = require('node:fs')
+const { execSync } = require('node:child_process')
+
+function readStdin() {
+  try {
+    return fs.readFileSync(0, 'utf8')
+  } catch {
+    return ''
+  }
+}
+
+let input = {}
+try {
+  input = JSON.parse(readStdin() || '{}')
+} catch {
+  // Malformed payload — don't get in the way.
+  process.exit(0)
+}
+
+// We already nudged on this stop; let it proceed rather than block again.
+if (input.stop_hook_active) process.exit(0)
+
+const cwd = process.env.CLAUDE_PROJECT_DIR || input.cwd || process.cwd()
+
+let porcelain = ''
+try {
+  porcelain = execSync('git status --porcelain --untracked-files=all', {
+    cwd,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  })
+} catch {
+  // Not a git repo / git unavailable — nothing to compare against.
+  process.exit(0)
+}
+
+const files = porcelain
+  .split('\n')
+  .filter(Boolean)
+  .map((line) => line.slice(3)) // strip the 2-char status + separating space
+  // Renames print "old -> new"; the destination is what changed.
+  .map((f) => (f.includes(' -> ') ? f.split(' -> ')[1] : f))
+  // git quotes paths with unusual chars; unwrap so prefix checks still work.
+  .map((f) => (f.startsWith('"') && f.endsWith('"') ? f.slice(1, -1) : f))
+
+const touchedSrc = files.some((f) => f.startsWith('src/'))
+const touchedTests = files.some((f) => f.startsWith('tests/'))
+
+if (touchedSrc && !touchedTests) {
+  const reason =
+    'e2e drift check: this session changed src/** but no tests/**. Per AGENTS.md ' +
+    '(Workflow), the Playwright suite must stay current — add or update a spec under ' +
+    'tests/ (shared helpers/fixtures in tests/support/) covering the new behavior, ' +
+    'then run `npm test`. If the change genuinely has no e2e-able surface (pure ' +
+    'refactor, types, comments, config), state that briefly and proceed.'
+  process.stdout.write(JSON.stringify({ decision: 'block', reason }))
+}
+
+process.exit(0)

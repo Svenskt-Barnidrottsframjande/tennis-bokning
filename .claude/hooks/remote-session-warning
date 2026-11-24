@@ -1,0 +1,11 @@
+#!/bin/sh
+# SessionStart hook: unmissable banner when a session runs in the Claude Code
+# REMOTE cloud sandbox (accidentally started from web/mobile instead of locally).
+# CLAUDE_CODE_REMOTE=true is set only in those containers; locally this is silent.
+# Standing owner preference: work should happen on the owner's own computer.
+if [ "$CLAUDE_CODE_REMOTE" = "true" ]; then
+  cat <<'JSON'
+{"systemMessage": "⚠️ ⚠️ ⚠️  REMOTE CLOUD SESSION — NOT your computer  ⚠️ ⚠️ ⚠️\nYou prefer working locally. This is an ephemeral cloud container: work exists only after commit+push, the e2e suite (npm test) CANNOT run here (Docker egress blocked), and pushes may hit permission walls. To work locally instead: stop this session and run claude in your local checkout.", "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": "This session runs in the Claude Code REMOTE cloud sandbox (CLAUDE_CODE_REMOTE=true), not on the user's computer. The user's standing preference is that work is done on their own computer, and they want to be warned clearly when a session is remote (they may have started it by accident). Therefore: begin your FIRST reply with a prominent warning that this is a remote cloud session, and ASK whether they want to continue here or restart locally BEFORE doing substantive work. Also remember: npm test cannot run in this sandbox (Docker egress blocked) and work must be committed and pushed to survive the container."}}
+JSON
+fi
+exit 0

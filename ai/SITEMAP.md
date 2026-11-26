@@ -31,7 +31,12 @@ tests/
   support/db.ts           direct SQL against the local e2e database
   home.spec.ts            landing renders, lang=sv
   health.spec.ts          /api/health 200 + seed present
+neon.ts                   Neon branch policy (infrastructure as code) — `neon config plan` / `neon deploy`
+.neon                     (git-ignored) link: org + project + pinned branch
+.claude/
+  settings.json           hooks (e2e-nudge, main-behind-warning, remote-session-warning)
+  hooks/                  the hook scripts
+  (Neon skills + MCP come from the user-level plugin `neon-postgres@neon`, not the repo)
 scripts/
-  e2e-db.mjs              up / down / status for the local e2e Postgres container
   reset-db.ts             drop → migrate → seed the local e2e database
 ```

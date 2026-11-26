@@ -1,0 +1,22 @@
+# Throwaway Postgres for the Playwright suite (see .env.e2e + playwright.config.ts).
+#   npm run db:start:e2e   → up + healthy
+#   npm run db:reset:e2e   → drop everything, re-run drizzle/ migrations, apply drizzle/seed.sql
+#   npm run db:stop:e2e    → down + wipe the volume
+# Port 54329 is deliberately unusual so it never collides with a local Postgres or
+# the Supabase stacks of sibling projects (544xx–548xx).
+name: tennis-e2e
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: tennis-e2e-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: tennis
+    ports:
+      - "127.0.0.1:54329:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tennis"]
+      interval: 2s
+      timeout: 2s
+      retries: 30

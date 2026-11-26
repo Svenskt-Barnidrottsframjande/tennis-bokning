@@ -1,4 +1,5 @@
 import { defineConfig } from "drizzle-kit";
+import { withStrictSsl } from "./src/db/connection-url";
 
 // drizzle-kit does NOT load .env.local itself — the db:* scripts wrap it in dotenv-cli.
 // Migrations go to the direct (unpooled) endpoint when there is one: pgbouncer in
@@ -9,7 +10,7 @@ export default defineConfig({
   dialect: "postgresql",
   schema: "./src/db/schema.ts",
   out: "./drizzle",
-  dbCredentials: { url: url ?? "" },
+  dbCredentials: { url: url ? withStrictSsl(url) : "" },
   strict: true,
   verbose: true,
 });

@@ -12,7 +12,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 **tennis-bokning** — a booking page for tennis clubs (courts, times, members), built for
 Svenskt Barnidrottsfrämjande. Sibling of `booking-system` (same house style, same workflow);
-the deliberate differences are **Neon Postgres + Drizzle instead of Supabase** and
+the deliberate differences are **Neon Postgres (Lakebase) + Drizzle instead of Supabase** and
 **Cache Components on** (see Stack). What follows is the shared house style.
 
 ## Start here — the `ai/` folder
@@ -45,20 +45,44 @@ Read these BEFORE exploring the codebase:
   - Workflow: edit schema → `npm run db:generate` → read the SQL → `npm run db:migrate`
     (against `DATABASE_URL_UNPOOLED` when set). Migrations are applied by hand, never in the
     Vercel build. Commit the migration with the schema change.
-  - The app uses the **pooled** Neon endpoint (`DATABASE_URL`); Neon branches are the
-    dev/preview-isolation tool (one branch per environment or per PR).
+  - The app uses the **pooled** Neon endpoint (`DATABASE_URL`, pgbouncer); migrations use the
+    **direct** one (`DATABASE_URL_UNPOOLED`). Neon branches isolate dev/preview work — see
+    "Neon tooling" below.
 - Tailwind CSS v4 (via `@tailwindcss/turbopack`, no PostCSS config). Design tokens in
   `src/app/globals.css` (`--brand`, `--background`, …).
 - Vercel hosting (Fluid Compute, Node runtime).
 - Validation: `zod`. Server-only modules import `server-only` at the top.
 
 ## Deployment tooling
-The **Vercel plugin** for Claude Code is installed (user scope). Prefer its `/deploy` and `/env`
-slash commands and the Vercel MCP (list projects/deployments, inspect logs) over hand-rolled
-`vercel` CLI sequences. Neon is provisioned through the **Vercel Marketplace** integration
-(`vercel integration add neon`) so `DATABASE_URL` / `DATABASE_URL_UNPOOLED` land in the project
-env automatically; `vercel env pull .env.local` brings them down locally. Note: connecting a
-fresh repo to Vercel for auto-deploy is still a one-time grant in the dashboard (Settings → Git).
+Vercel team **`svenskt-barnidrottsfraemjande`** (Svenskt Barnidrottsfrämjande — a separate Vercel
+account from booking-system's), project `tennis-bokning`, linked via `.vercel/` (git-ignored),
+GitHub repo connected: a push to `main` deploys production. The **Vercel plugin** for Claude
+Code is installed (user scope): prefer `/deploy`, `/env`, `/status` and the Vercel MCP over
+hand-rolled CLI sequences — but check `vercel whoami` first, the plugin's MCP may be signed in
+as the other account. Production env vars are **sensitive** (write-only) by team policy. Function region `fra1`.
+The GitHub repo is **public** (free Vercel plan) — never commit a secret.
+
+## Neon tooling (CLI, skills, MCP)
+- **Neon CLI** (`npx neon@latest …`, signed in as the Svenskt Barnidrottsfrämjande account).
+  Prefer the CLI over the MCP server. The project link lives in the git-ignored `.neon`
+  (org `org-young-hat-05078657`, project `frosty-violet-73169705` "tennis-bokning",
+  `aws-eu-central-1`, Postgres 18). `neon.ts` is the branch policy (infrastructure as code):
+  `npx neon config plan` (dry run) → `npx neon deploy` (apply + pull the branch's env into
+  `.env.local`: `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `NEON_BRANCH`, `NEON_BRANCH_ID`,
+  `NEON_FUNCTION_HOST_SUFFIX`). `npx neon env pull` refreshes `.env.local` on its own.
+- **Branch-first:** create a Neon branch whenever you would create a git branch —
+  `npx neon checkout dev-<feature> --create` (policy in `neon.ts` gives non-default branches a
+  7-day TTL) pins it in `.neon` and rewrites `.env.local`; `npx neon diff` shows the schema diff
+  against the parent; `npx neon checkout production` goes back. Test a migration on a branch
+  before `npm run db:migrate` against production.
+- **Neon agent skills + MCP server** come from the **user-level Claude Code plugin
+  `neon-postgres@neon`** (marketplace `neondatabase/agent-skills`, auto-updating; installed with
+  `npx neon plugins --agent claude-code`). It provides the skills `neon`, `neon-postgres`,
+  `neon-auth`, `neon-functions`, `neon-object-storage`, `neon-ai-gateway`, `neon-realtime` and
+  the Neon MCP server (`https://mcp.neon.tech/mcp`, OAuth — sign in from the agent on first
+  use). Nothing Neon-related is checked into this repo besides `neon.ts`. Work from the
+  matching skill for Neon tasks; prefer the CLI over the MCP server. If the skills are missing
+  in a session, the plugin is not enabled on that machine — re-run the install command.
 
 ## Language
 - UI labels: Swedish
@@ -94,7 +118,7 @@ Worktrees (`.claude/worktrees/*`) branch from **`origin/main`**, not local HEAD:
 
 ## Testing (e2e) — keep it current
 The Playwright suite in `tests/` runs against a **throwaway local Postgres**
-(`scripts/e2e-db.mjs`, port 54329) and a dedicated dev server on :3100 — never Neon
+(`docker-compose.e2e.yml`, port 54329 — Docker Compose plugin via Homebrew) and a dedicated dev server on :3100 — never Neon
 (config: `playwright.config.ts`, env: `.env.e2e`; the config refuses a non-localhost
 `DATABASE_URL`). Docker runs in Colima.
 - `npm run db:start:e2e` once per machine session; `npm run db:reset:e2e` replays `drizzle/`

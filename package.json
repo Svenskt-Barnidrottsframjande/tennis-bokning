@@ -11,13 +11,15 @@
     "db:generate": "dotenv -e .env.local -- drizzle-kit generate",
     "db:migrate": "dotenv -e .env.local -- drizzle-kit migrate",
     "db:studio": "dotenv -e .env.local -- drizzle-kit studio",
-    "db:start:e2e": "node scripts/e2e-db.mjs up",
+    "db:start:e2e": "docker compose -f docker-compose.e2e.yml up -d --wait",
     "db:reset:e2e": "dotenv -e .env.e2e -- tsx scripts/reset-db.ts",
-    "db:stop:e2e": "node scripts/e2e-db.mjs down",
+    "db:stop:e2e": "docker compose -f docker-compose.e2e.yml down -v",
     "test": "dotenv -e .env.e2e -- playwright test",
-    "db:status:e2e": "node scripts/e2e-db.mjs status"
+    "db:status:e2e": "docker compose -f docker-compose.e2e.yml ps"
   },
   "dependencies": {
+    "@neon/config": "^1.14.6",
+    "@neon/env": "^2.1.9",
     "drizzle-orm": "^0.45.4",
     "next": "16.4.6",
     "pg": "^8.23.1",

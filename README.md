@@ -1,6 +1,6 @@
 # tennis-bokning
 
-Bokningssystem för tennisklubbar — **Next.js 16 + Neon Postgres (Drizzle) + Tailwind + Vercel**.
+Bokningssystem för tennisklubbar — **Next.js 16 + Neon (Lakebase Postgres, Drizzle) + Tailwind + Vercel**.
 Sibling of `booking-system`, with Neon in place of Supabase.
 
 ## Run it
@@ -23,15 +23,25 @@ npm run dev                        # http://localhost:3000  — /api/health show
 `src/db/schema.ts` is the schema. `drizzle/` holds generated migrations — commit them with the
 schema change, apply them by hand (never in the Vercel build).
 
-**Getting a Neon database:** preferred path is the Vercel Marketplace on the linked Vercel
-project — `vercel integration add neon` — which sets `DATABASE_URL` and `DATABASE_URL_UNPOOLED`
-on the project; `vercel env pull .env.local` copies them down. Alternative: create the project
-in the Neon console and paste the pooled + direct connection strings into `.env.local`.
+**Neon project:** `tennis-bokning` (`frosty-violet-73169705`, `aws-eu-central-1`, Postgres 18),
+linked through the git-ignored `.neon` file. Everything goes through the Neon CLI:
+
+```bash
+npx neon@latest login          # once per machine (browser)
+npx neon env pull              # refresh .env.local from the pinned branch
+npx neon config plan           # dry-run neon.ts against the branch
+npx neon deploy                # apply neon.ts + pull env
+npx neon checkout dev-x --create   # work on a copy-on-write branch; .env.local follows
+npx neon checkout production   # back to production
+```
+
+`neon.ts` declares the branch policy. Claude Code gets Neon's skills and MCP server from the
+user-level plugin `neon-postgres@neon` (`npx neon plugins --agent claude-code`, once per machine).
 
 ## Tests (Playwright, local Postgres only)
 
 ```bash
-npm run db:start:e2e     # docker run: Postgres 17 on 127.0.0.1:54329 (Colima, no Compose needed)
+npm run db:start:e2e     # docker compose: Postgres 17 on 127.0.0.1:54329 (Colima)
 npm run db:reset:e2e     # drop → migrate → drizzle/seed.sql
 npm test                 # full suite on its own dev server (:3100), env from .env.e2e
 npm test -- tests/home.spec.ts

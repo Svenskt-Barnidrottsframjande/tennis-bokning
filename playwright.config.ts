@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// The suite ALWAYS runs against the throwaway local Postgres (scripts/e2e-db.mjs) +
+// The suite ALWAYS runs against the throwaway local Postgres (docker-compose.e2e.yml) +
 // a dedicated dev server on port 3100 (never the Neon-pointed `npm run dev` on 3000).
 // Env is injected by `dotenv -e .env.e2e` (see the `test` script); the dev server inherits it.
 //
